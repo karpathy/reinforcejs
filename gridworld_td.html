@@ -26,10 +26,11 @@
   <link rel="stylesheet" href="external/highlight_default.css">
   <script>hljs.initHighlightingOnLoad();</script>
 
-  <!-- mathjax -->
+  <!-- mathjax : nvm now loading dynamically
   <script type="text/javascript"
   src="https://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML">
   </script>
+   -->
 
   <!-- rljs -->
   <script type="text/javascript" src="lib/rl.js"></script>
@@ -532,11 +533,25 @@
       $(".md").each(function(){
         $(this).html(marked($(this).html()));
       });
+      renderJax();
 
       initGrid();
       drawGrid();
       initGraph();
     }
+
+    var jaxrendered = false;
+    function renderJax() {
+      if(jaxrendered) { return; }
+      (function () {
+        var script = document.createElement("script");
+        script.type = "text/javascript";
+        script.src  = "http://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML";
+        document.getElementsByTagName("head")[0].appendChild(script);
+        jaxrendered = true;
+      })();
+    }
+
   </script>
 
  </head>

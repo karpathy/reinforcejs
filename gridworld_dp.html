@@ -7,7 +7,6 @@
   <meta name="description" content="">
   <meta name="author" content="">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <link href="common.css" rel="stylesheet">
   
   <!-- jquery and jqueryui -->
   <script src="https://code.jquery.com/jquery-2.1.3.min.js"></script>
@@ -27,8 +26,9 @@
   <link rel="stylesheet" href="external/highlight_default.css">
   <script>hljs.initHighlightingOnLoad();</script>
 
-  <!-- mathjax -->
+  <!-- mathjax: nvm now loading dynamically
   <script type="text/javascript" src="https://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
+-->
 
   <!-- rljs -->
   <script type="text/javascript" src="lib/rl.js"></script>
@@ -409,7 +409,19 @@
       $(".md").each(function(){
         $(this).html(marked($(this).html()));
       });
+      renderJax();
+    }
 
+    var jaxrendered = false;
+    function renderJax() {
+      if(jaxrendered) { return; }
+      (function () {
+        var script = document.createElement("script");
+        script.type = "text/javascript";
+        script.src  = "http://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML";
+        document.getElementsByTagName("head")[0].appendChild(script);
+        jaxrendered = true;
+      })();
     }
   </script>
 
@@ -467,7 +479,21 @@ In other words, this is a deterministic, finite Markov Decision Process (MDP) an
 
 ### Dynamic Programming
 
-An interested reader should refer to **Richard Sutton's Free Online Book on Reinforcement Learning**, in this particular case [Chapter 4](http://webdocs.cs.ualberta.ca/~sutton/book/ebook/node40.html). The core idea is to compute the optimal policy by following the Policy Iteration scheme: We start out with some diffuse initial policy and evaluate the Value function of every state under that policy. Then we update the policy to be greedy with respect the Value function. We then re-estimate the Value of each state, and continue iterating until we converge to the optimal policy. These two steps can be controlled by the buttons in the interface:
+An interested reader should refer to **Richard Sutton's Free Online Book on Reinforcement Learning**, in this particular case [Chapter 4](http://webdocs.cs.ualberta.ca/~sutton/book/ebook/node40.html). Briefly, an agent interacts with the environment based on its policy \\(\pi(a \mid s)\\). This is a function from states \\(s\\) to an action \\(a\\), or more generally to a distribution over the possible actions. After every action, the agent also receives a reward \\(r\\) from the environment. The interaction between the agent and the environment hence takes the form \\(s\_t, a\_t, r\_t, s\_{t+1}, a\_{t+1}, r\_{t+1}, s\_{t+2}, \ldots \\), indexed by t (time) and our goal is to find the policy \\(\pi^\*\\) that maximizes the amount of reward over time. In the DP approach, it is helpful to define a **Value function** \\(V^\pi(s)\\) that gives the expected reward when starting from the state \\(s\\) and then interacting with the environment according to \\(\pi\\):
+
+$$
+V^\pi(s) = E \\{ r\_t + \gamma r\_{t+1} + \gamma^2 r\_{t+2} + \ldots \mid s\_t = s \\}
+$$
+
+Note that the expectation is over both 1. the agent's (in general) stochastic policy and 2. the environment dynamics; That is, how the environment evolves when the agent takes an action \\(a\\) in state \\(s\\) and what the obtained reward is in that case. The constant \\(\gamma\\) is a discount factor that gives more weight to earlier rewards than the later ones. We can start writing out the expectation. To get the value of state \\(s\\) we sum over all the actions the agent would take, then over all ways the environment could respond, and so on back and forth. When you do this, you'll find that:
+
+$$
+V^\pi(s) = \sum\_{a} \pi(s,a) \sum\_{s'} \mathcal{P}\_{ss'}^{a} \left[ \mathcal{R}\_{ss'}^{a} + \gamma V^\pi(s') \right]
+$$
+
+In the above equation \\(\mathcal{P}\_{ss'}^{a} , \mathcal{R}\_{ss'}^{a} \\) are fixed constants specific to the environment, and give the probability of the next state \\(s'\\) given that the agent took action \\(a\\) in state \\(s\\), and the expected reward for that transition, respectively. This equation is called the **Bellman Equation** and interestingly, it describes a recursive relationship that the value function for a given policy should satisfy.
+
+With our goal of finding the optimal policy \\(\pi^\*(s,a)\\) that gets the most Value from all states, our strategy will be to follow the **Policy Iteration** scheme: We start out with some diffuse initial policy and evaluate the Value function of every state under that policy by turning the Bellman equation into an update. The value function effectively diffuses the rewards backwards through the environment dynamics and the agent's expected actions, as given by its current policy. Once we estimate the values of all states we will update the policy to be greedy with respect the Value function. We then re-estimate the Value of each state, and continue iterating until we converge to the optimal policy (the process can be shown to converge). These two steps can be controlled by the buttons in the interface:
 
 - The **Policy Evaluation (one sweep)** button turns the Bellman equation into a synchronous update and performs a single step of Value Function estimation. Intuitively, this update is diffusing the raw Rewards at each state to other nearby states through 1. the the dynamics of the environment and 2. the current policy.
 - The **Policy Update** button iterates over all states and updates the policy at each state to take the action that leads to the state with the best Value (integrating over the next state distribution of the environment for each action).

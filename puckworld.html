@@ -26,8 +26,9 @@
   <link rel="stylesheet" href="external/highlight_default.css">
   <script>hljs.initHighlightingOnLoad();</script>
 
-  <!-- mathjax -->
+  <!-- mathjax: nvm now loaded dynamically
   <script type="text/javascript" src="https://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
+  -->
 
   <!-- rljs -->
   <script type="text/javascript" src="lib/rl.js"></script>
@@ -430,8 +431,22 @@
       $(".md").each(function(){
         $(this).html(marked($(this).html()));
       });
+      renderJax();
 
     }
+
+    var jaxrendered = false;
+    function renderJax() {
+      if(jaxrendered) { return; }
+      (function () {
+        var script = document.createElement("script");
+        script.type = "text/javascript";
+        script.src  = "http://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML";
+        document.getElementsByTagName("head")[0].appendChild(script);
+        jaxrendered = true;
+      })();
+    }
+    
   </script>
   <style type="text/css">
       canvas { border: 1px solid white; }
@@ -538,7 +553,7 @@ In other words, Deep Q Learning is a 1-dimensional regression problem with a van
 
 There are several bells and whistles that make Q Learning with function approximation tracktable in practical problems:
 
-**Modeling Q(s,a)**. First, as mentioned we are using a function approximator to model the Q function: \\(Q(s,a) = f\_{\theta}(s)\\). The natural approach to take is to perhaps have a neural network that takes as inputs the state vector \\(s\\) and an action vector \\(a\\) (e.g. encoded with a 1-of-k indicator vector), and output a single number that gives \\(Q(s,a)\\). However, this approach leads to a practical problem because the policy of the agent is to take an action that maximizes Q:\\( \pi(a \mid s) = \arg\max\_a Q(s,a) \\). With this naive approach, when the agent wants to produce an action we'd have to iterate over all actions, evaluate Q for each one and take the action that gave the highest Q.
+**Modeling Q(s,a)**. First, as mentioned we are using a function approximator to model the Q function: \\(Q(s,a) = f\_{\theta}(s,a)\\). The natural approach to take is to perhaps have a neural network that takes as inputs the state vector \\(s\\) and an action vector \\(a\\) (e.g. encoded with a 1-of-k indicator vector), and output a single number that gives \\(Q(s,a)\\). However, this approach leads to a practical problem because the policy of the agent is to take an action that maximizes Q, that is: \\( \pi(a \mid s) = \arg\max\_a Q(s,a) \\). Therefore, with this naive approach, when the agent wants to produce an action we'd have to iterate over all actions, evaluate Q for each one and take the action that gave the highest Q.
 
 A better idea is to instead predict the value \\(Q(s,a)\\) as a neural network that only takes the state \\(s\\), and produces multiple output, each interpreted as the Q value of taking that action in the given state. This way, deciding what action to take reduces to performing a single forward pass of the network and finding the argmax action. A diagram may help get the idea across:
 
