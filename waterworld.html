@@ -1,0 +1,389 @@
+<!doctype html>
+<html lang="en">
+ <head>
+  <meta charset="utf-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge,chrome=1">
+  <title>REINFORCEjs: WaterWorld demo</title>
+  <meta name="description" content="">
+  <meta name="author" content="">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+   <!-- jquery and jqueryui -->
+  <script src="https://code.jquery.com/jquery-2.1.3.min.js"></script>
+  <link href="external/jquery-ui.min.css" rel="stylesheet">
+  <script src="external/jquery-ui.min.js"></script>
+
+  <!-- bootstrap -->
+  <script src="http://maxcdn.bootstrapcdn.com/bootstrap/3.3.4/js/bootstrap.min.js"></script>
+  <link href="http://maxcdn.bootstrapcdn.com/bootstrap/3.3.4/css/bootstrap.min.css" rel="stylesheet">
+
+  <!-- d3js -->
+  <script type="text/javascript" src="external/d3.min.js"></script>
+
+  <!-- markdown -->
+  <script type="text/javascript" src="external/marked.js"></script>
+  <script type="text/javascript" src="external/highlight.pack.js"></script>
+  <link rel="stylesheet" href="external/highlight_default.css">
+  <script>hljs.initHighlightingOnLoad();</script>
+
+  <!-- mathjax -->
+  <script type="text/javascript" src="https://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
+
+  <!-- rljs -->
+  <script type="text/javascript" src="lib/rl.js"></script>
+
+  <!-- flotjs -->
+  <script src="external/jquery.flot.min.js"></script>
+
+  <!-- environment dynamics -->
+  <script src="waterworld.js"></script>
+
+  <!-- GA -->
+  <script>
+  (function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
+  (i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
+  m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
+  })(window,document,'script','//www.google-analytics.com/analytics.js','ga');
+  ga('create', 'UA-3698471-24', 'auto');
+  ga('send', 'pageview');
+  </script>
+
+  <style>
+  #wrap {
+    width:800px;
+    margin-left: auto;
+    margin-right: auto;
+  }
+  h2 {
+    text-align: center;
+  }
+  body {
+    font-family: Arial, "Helvetica Neue", Helvetica, sans-serif;
+  }
+  canvas {
+    border: 1px solid black;
+  }
+  </style>
+  
+  <script type="application/javascript">
+    var canvas, ctx;
+    
+    // Draw everything
+    function draw() {  
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      ctx.lineWidth = 1;
+      var agents = w.agents;
+      
+      // draw walls in environment
+      ctx.strokeStyle = "rgb(0,0,0)";
+      ctx.beginPath();
+      for(var i=0,n=w.walls.length;i<n;i++) {
+        var q = w.walls[i];
+        ctx.moveTo(q.p1.x, q.p1.y);
+        ctx.lineTo(q.p2.x, q.p2.y);
+      }
+      ctx.stroke();
+  
+      // draw agents
+      // color agent based on reward it is experiencing at the moment
+      var r = 0;
+      ctx.fillStyle = "rgb(" + r + ", 150, 150)";
+      ctx.strokeStyle = "rgb(0,0,0)";
+      for(var i=0,n=agents.length;i<n;i++) {
+        var a = agents[i];
+        
+        // draw agents body
+        ctx.beginPath();
+        ctx.arc(a.op.x, a.op.y, a.rad, 0, Math.PI*2, true); 
+        ctx.fill();
+        ctx.stroke();
+        
+        // draw agents sight
+        for(var ei=0,ne=a.eyes.length;ei<ne;ei++) {
+          var e = a.eyes[ei];
+          var sr = e.sensed_proximity;
+          if(e.sensed_type === -1 || e.sensed_type === 0) { 
+            ctx.strokeStyle = "rgb(200,200,200)"; // wall or nothing
+          }
+          if(e.sensed_type === 1) { ctx.strokeStyle = "rgb(255,150,150)"; } // apples
+          if(e.sensed_type === 2) { ctx.strokeStyle = "rgb(150,255,150)"; } // poison
+          ctx.beginPath();
+          ctx.moveTo(a.op.x, a.op.y);
+          ctx.lineTo(a.op.x + sr * Math.sin(a.oangle + e.angle),
+                     a.op.y + sr * Math.cos(a.oangle + e.angle));
+          ctx.stroke();
+        }
+      }
+      
+      // draw items
+      ctx.strokeStyle = "rgb(0,0,0)";
+      for(var i=0,n=w.items.length;i<n;i++) {
+        var it = w.items[i];
+        if(it.type === 1) ctx.fillStyle = "rgb(255, 150, 150)";
+        if(it.type === 2) ctx.fillStyle = "rgb(150, 255, 150)";
+        ctx.beginPath();
+        ctx.arc(it.p.x, it.p.y, it.rad, 0, Math.PI*2, true); 
+        ctx.fill();
+        ctx.stroke();
+      }
+    }
+
+    // Tick the world
+    var smooth_reward_history = [];
+    var smooth_reward = null;
+    var flott = 0;
+    function tick() {
+
+      if(simspeed === 3) {
+        for(var k=0;k<50;k++) {
+          w.tick();
+        }
+      } else {
+        w.tick();
+      }
+      draw();
+      
+      var rew = w.agents[0].last_reward;
+      if(smooth_reward == null) { smooth_reward = rew; }
+      smooth_reward = smooth_reward * 0.999 + rew * 0.001;
+      flott += 1;
+      if(flott === 50) {
+        // record smooth reward
+        if(smooth_reward_history.length >= nflot) {
+          smooth_reward_history = smooth_reward_history.slice(1);
+        }
+        smooth_reward_history.push(smooth_reward);
+        flott = 0;
+      }
+
+      var agent = w.agents[0];
+      if(typeof agent.expi !== 'undefined') {
+        $("#expi").html(agent.expi);
+      }
+      if(typeof agent.tderror !== 'undefined') {
+        $("#tde").html(agent.tderror.toFixed(3));
+      }
+    }
+
+    // flot stuff
+    var nflot = 1000;
+    function initFlot() {
+      var container = $("#flotreward");
+      var res = getFlotRewards();
+      series = [{
+        data: res,
+        lines: {fill: true}
+      }];
+      var plot = $.plot(container, series, {
+        grid: {
+          borderWidth: 1,
+          minBorderMargin: 20,
+          labelMargin: 10,
+          backgroundColor: {
+            colors: ["#FFF", "#e4f4f4"]
+          },
+          margin: {
+            top: 10,
+            bottom: 10,
+            left: 10,
+          }
+        },
+        xaxis: {
+          min: 0,
+          max: nflot
+        },
+        yaxis: {
+          min: -0.1,
+          max: 0.1
+        }
+      });
+      setInterval(function(){
+        series[0].data = getFlotRewards();
+        plot.setData(series);
+        plot.draw();
+      }, 100);
+    }
+    function getFlotRewards() {
+      // zip rewards into flot data
+      var res = [];
+      for(var i=0,n=smooth_reward_history.length;i<n;i++) {
+        res.push([i, smooth_reward_history[i]]);
+      }
+      return res;
+    }
+    
+    var simspeed = 2;
+    function goveryfast() {
+      window.clearInterval(current_interval_id);
+      current_interval_id = setInterval(tick, 0);
+      skipdraw = true;
+      simspeed = 3;
+    }
+    function gofast() {
+      window.clearInterval(current_interval_id);
+      current_interval_id = setInterval(tick, 0);
+      skipdraw = true;
+      simspeed = 2;
+    }
+    function gonormal() {
+      window.clearInterval(current_interval_id);
+      current_interval_id = setInterval(tick, 30);
+      skipdraw = false;
+      simspeed = 1;
+    }
+    function goslow() {
+      window.clearInterval(current_interval_id);
+      current_interval_id = setInterval(tick, 200);
+      skipdraw = false;
+      simspeed = 0;
+    }
+
+    function saveAgent() {
+      var brain = w.agents[0].brain;
+      $("#mysterybox").fadeIn();
+      $("#mysterybox").val(JSON.stringify(brain.toJSON()));
+    }
+    
+    function resetAgent() {
+      eval($("#agentspec").val())
+      var brain = new RL.DQNAgent(env, spec);
+      w.agents[0].brain = brain;
+    }
+
+    function loadAgent() {
+      $.getJSON( "agentzoo/wateragent.json", function( data ) {
+        var agent = w.agents[0].brain;
+        agent.fromJSON(data); // corss your fingers...
+        // set epsilon to be much lower for more optimal behavior
+        agent.epsilon = 0.05;
+        $("#slider").slider('value', agent.epsilon);
+        $("#eps").html(agent.epsilon.toFixed(2));
+        // kill learning rate to not learn
+        agent.alpha = 0;
+      });
+    }
+
+    var w; // global world object
+    var current_interval_id;
+    var skipdraw = false;
+    function start() {
+      canvas = document.getElementById("canvas");
+      ctx = canvas.getContext("2d");
+      
+      eval($("#agentspec").val())
+
+      w = new World();
+      w.agents = [];
+      for(var k = 0; k < 1; k++) {
+        var a = new Agent();
+        env = a;
+        a.brain = new RL.DQNAgent(env, spec); // give agent a TD brain
+        //a.brain = new RL.RecurrentReinforceAgent(env, {});
+        w.agents.push(a);
+      }
+
+      $( "#slider" ).slider({
+        min: 0,
+        max: 1,
+        value: w.agents[0].brain.epsilon,
+        step: 0.01,
+        slide: function(event, ui) {
+          w.agents[0].brain.epsilon = ui.value;
+          $("#eps").html(ui.value.toFixed(2));
+        }
+      });
+      $("#eps").html(w.agents[0].brain.epsilon.toFixed(2));
+      $("#slider").slider('value', w.agents[0].brain.epsilon);
+      
+      initFlot();
+      gonormal();
+
+      // render markdown
+      $(".md").each(function(){
+        $(this).html(marked($(this).html()));
+      });
+    }
+  </script>
+  <style type="text/css">
+      canvas { border: 1px solid white; }
+    </style>
+
+ </head>
+ <body onload="start();">
+   <div id="wrap">
+
+
+   <div id="mynav" style="border-bottom:1px solid #999; padding-bottom: 10px; margin-bottom:50px;">
+    <div>
+      <img src="loop.svg" style="width:50px;height:50px;float:left;">
+      <h1 style="font-size:50px;">REINFORCE<span style="color:#058;">js</span></h1>
+    </div>
+    <ul class="nav nav-pills">
+      <li role="presentation"><a href="index.html">About</a></li>
+      <li role="presentation"><a href="gridworld_dp.html">GridWorld: DP</a></li>
+      <li role="presentation"><a href="gridworld_td.html">GridWorld: TD</a></li>
+      <li role="presentation"><a href="puckworld.html">PuckWorld: DQN</a></li>
+      <li role="presentation" class="active"><a href="waterworld.html">WaterWorld: DQN</a></li>
+    </ul>
+   </div>
+
+<textarea id="agentspec" style="width:100%;height:250px;">
+// agent parameter spec to play with (this gets eval()'d on Agent reset)
+var spec = {}
+spec.update = 'qlearn'; // qlearn | sarsa
+spec.gamma = 0.9; // discount factor, [0, 1)
+spec.epsilon = 0.2; // initial epsilon for epsilon-greedy policy, [0, 1)
+spec.alpha = 0.005; // value function learning rate
+spec.experience_add_every = 5; // number of time steps before we add another experience to replay memory
+spec.experience_size = 10000; // size of experience
+spec.learning_steps_per_iteration = 5;
+spec.tderror_clamp = 1.0; // for robustness
+spec.num_hidden_units = 100 // number of neurons in hidden layer
+</textarea>
+
+<div style="text-align:center;">
+<button class="btn btn-danger" onclick="resetAgent()" style="width:150px;height:50px;margin-bottom:5px;">Reinit agent</button>
+<button class="btn btn-success" onclick="goveryfast()" style="width:150px;height:50px;margin-bottom:5px;">Go very fast</button>
+<button class="btn btn-success" onclick="gofast()" style="width:150px;height:50px;margin-bottom:5px;">Go fast</button>
+<button class="btn btn-success" onclick="gonormal()" style="width:150px;height:50px;margin-bottom:5px;">Go normal</button>
+<button class="btn btn-success" onclick="goslow()" style="width:150px;height:50px;margin-bottom:5px;">Go slow</button>
+
+<canvas id="canvas" width="700" height="500"></canvas>
+</div>
+
+   <div id="brain_info_div"></div>
+
+<button class="btn btn-primary" onclick="loadAgent()" style="width:200px;height:35px;margin-bottom:5px;margin-right:20px;">Load a Pretrained Agent</button>
+
+<br>
+Exploration epsilon: <span id="eps">0.15</span> <div id="slider"></div>
+
+<br>
+
+<div id="expi"></div>
+<div id="tde"></div>
+
+<div id="flotreward" style="width:800px; height: 400px;"></div>
+
+<textarea id="mysterybox" style="width:100%;display:none;">mystery text box</textarea>
+
+
+<div id="exp" class="md">
+
+### Setup
+
+This is another Deep Q Learning demo with a more realistic and larger setup:
+
+- The **state space** is even larger and continuous: The agent has 30 eye sensors pointing in all directions and in each direction is observes 5 variables: the range, the type of sensed object (green, red), and the velocity of the sensed object. The agent's proprioception includes two additional sensors for its own speed in both x and y directions. This is a total of 152-dimensional state space.
+- There are 4 **actions** available to the agent: To apply thrusters to the left, right, up and down. This gives the agent control over its velocity.
+- The **dynamics** integrate the velocity of the agent to change its position. The green and red targets bounce around.
+- The **reward** awarded to the agent is +1 for making contact with any red target (these are apples) and -1 for making contact with any green target (this is poison).
+
+The optimal strategy of the agent is to cruise around, run away from green targets and eat red targets. What's interesting about this demo is that the state space is so high-dimensional, and also that the sensed variables are agent-relative. They're not just toy x,y coordinates of some fixed number of targets as in previous demo.
+
+</div>
+
+<br><br><br><br>
+   </div>
+ </body>
+</html>
