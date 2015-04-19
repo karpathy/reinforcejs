@@ -7,7 +7,7 @@
 - **Deep Q-Learning** for Q-Learning with function approximation with Neural Networks
 - **Stochastic/Deterministic Policy Gradients** and Actor Critic architectures for dealing with continuous action spaces. (*very alpha, likely buggy or at the very least finicky and inconsistent*)
 
-See the [main webpage](cs.stanford.edu/people/karpathy/reinforcejs) for many more details, documentation and demos.
+See the [main webpage](http://cs.stanford.edu/people/karpathy/reinforcejs) for many more details, documentation and demos.
 
 # Code Sketch
 
@@ -36,7 +36,7 @@ setInterval(function(){ // start the learning loop
 }, 0);
 ```
 
-The full documentation and demos are on the [main webpage](cs.stanford.edu/people/karpathy/reinforcejs).
+The full documentation and demos are on the [main webpage](http://cs.stanford.edu/people/karpathy/reinforcejs).
 
 # License
 
