@@ -192,7 +192,7 @@ World.prototype = {
     for(var i=0,n=this.agents.length;i<n;i++) {
       this.agents[i].forward();
     }
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      
+
     // apply outputs of agents on evironment
     for(var i=0,n=this.agents.length;i<n;i++) {
       var a = this.agents[i];
@@ -239,6 +239,7 @@ World.prototype = {
     // tick all items
     var update_items = false;
     for(var j=0,m=this.agents.length;j<m;j++) {
+      var a = this.agents[j];
       a.digestion_signal = 0; // important - reset this!
     }
     for(var i=0,n=this.items.length;i<n;i++) {
@@ -256,8 +257,14 @@ World.prototype = {
           var rescheck = false;
           if(!rescheck) { 
             // ding! nom nom nom
-            if(it.type === 1) a.digestion_signal += 1.0; // mmm delicious apple
-            if(it.type === 2) a.digestion_signal += -1.0; // ewww poison
+            if(it.type === 1) {
+              a.digestion_signal += 1.0; // mmm delicious apple
+              a.apples++;
+            }
+            if(it.type === 2) {
+              a.digestion_signal += -1.0; // ewww poison
+              a.poison++;
+            }
             it.cleanup_ = true;
             update_items = true;
             break; // break out of loop, item was consumed
@@ -338,6 +345,9 @@ var Agent = function() {
   this.reward_bonus = 0.0;
   this.digestion_signal = 0.0;
   
+  this.apples = 0;
+  this.poison = 0;
+
   // outputs on world
   this.action = 0;
   
