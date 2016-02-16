@@ -98,10 +98,16 @@ I do not include the demo for policy gradient methods because the current implem
 
 # Example Library Usage
 
-Including the library (currently there is no nodejs support out of the box):
+Including the library in a browser:
+
+```HTML
+<script type="text/javascript" src="lib/rl.js"></script>
+```
+
+Or in Node.js:
 
 ```javascript
-<script type="text/javascript" src="lib/rl.js"></script>
+var RL = require("./lib/rl.js");
 ```
 
 For most applications (e.g. simple games), the DQN algorithm is a safe bet to use. If your project has a finite state space that is not too large, the DP or tabular TD methods are more appropriate. As an example, the DQN Agent satisfies a very simple API:
