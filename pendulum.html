@@ -1,0 +1,139 @@
+<!doctype html>
+<html lang="en">
+	<head>
+		<meta charset="utf-8">
+		<meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+		<link rel="stylesheet" href="css/bootstrap.min.css">		
+		<title>Inverse Pendulum</title>
+		<script src="lib/rl.js"></script>
+	</head>
+	<body>
+		<button onclick="numSteps = 1 - numSteps;">Training</button><br />
+		
+		<canvas id="c" width=800 height=600
+			style="
+				box-shadow : 0px 0px 20px 10px black;
+				margin : 20px;
+				"
+		></canvas>
+		
+		
+		<script>
+			class Point {
+				constructor(x,y,decayx,decayy,color) {
+					this.x = x;
+					this.y = y;
+					this.vx = 0;
+					this.vy = 0;
+					this.decayx = decayx;
+					this.decayy = decayy;
+					this.color = color;
+				}
+			}
+			
+			class Line {
+				constructor(p1,p2,length,color) {
+					this.p1 = p1;
+					this.p2 = p2;
+					this.length = length;
+					this.color = color;
+				}
+			}
+		
+			class Physics2D {
+				constructor() {
+					this.points = [];
+					this.lines = [];
+					this.gravity = -1.0;
+					this.stepSize = 0.5;
+					this.numSteps = 1;
+				}
+				
+				step() {
+					this.lines.forEach(function(l) {
+						var dx = l.p2.x - l.p1.x;
+						var dy = l.p2.y - l.p1.y;
+						var len = Math.sqrt(dx * dx + dy * dy);
+						var f = this.stepSize * (len - l.length) / len;
+						var fx = dx * f;
+						var fy = dy * f;
+						
+						l.p1.vx += fx;
+						l.p1.vy += fy;
+						l.p2.vx -= fx;
+						l.p2.vy -= fy;
+					}.bind(this));
+					
+					this.points.forEach(function(p) {
+						p.vy += this.gravity * this.stepSize;
+						p.vx *= p.decayx;
+						p.vy *= p.decayy;
+						p.x += this.stepSize * p.vx;
+						p.y += this.stepSize * p.vy;
+					}.bind(this));
+				}
+				
+				render(ctx) {
+					ctx.fillStyle = "black";
+					ctx.fillRect(0,0,ctx.canvas.width,ctx.canvas.height);
+					
+					this.lines.forEach(function(l) {
+						ctx.strokeStyle = l.color;
+						ctx.beginPath();
+						ctx.moveTo(l.p1.x,ctx.canvas.height - l.p1.y);
+						ctx.lineTo(l.p2.x,ctx.canvas.height - l.p2.y);
+						ctx.stroke();
+					}.bind(this));
+					
+					this.points.forEach(function(p) {
+						ctx.strokeStyle = p.color;
+						ctx.beginPath();
+						ctx.arc(p.x,ctx.canvas.height - p.y,10,0,2 * Math.PI);
+						ctx.stroke();
+					}.bind(this));
+				}
+			}
+			
+			var canv = document.getElementById("c");
+			var ctx = canv.getContext("2d");
+			var physics = new Physics2D();
+			var agent = new Point(canv.width / 2,canv.height / 2,0.99,0,"red");
+			var pendulum = new Point(canv.width / 2 + 10,canv.height,0.99,0.99,"blue");
+			
+			physics.points.push(agent);
+			physics.points.push(pendulum);
+			physics.lines.push(new Line(agent,pendulum, canv.height / 2,"white"));
+			
+			var env = {};
+			env.getNumStates = function() { return 3; };
+			env.getMaxNumActions = function() { return 2; };
+
+			var spec = { alpha: 0.01 };
+			rlagent = new RL.DQNAgent(env, spec);
+			
+			var numSteps = 0;
+			
+			window.setInterval(function() {
+				for(var i = 0;i < numSteps * 100 + 1;++i) {
+					var action = rlagent.act([agent.x,pendulum.x,pendulum.y]);
+					agent.vx += action - 0.5;
+					physics.step();
+					
+					if(agent.x > canv.width - 10) {
+						agent.x = canv.width - 10;
+						agent.vx = 0;
+					}
+					if(agent.x < 10) {
+						agent.x = 10;
+						agent.vx = 0;
+					}
+
+					rlagent.learn(pendulum.y);
+					
+					physics.render(ctx);
+				}
+			},10);
+		</script>
+	</body>
+</html>
+
